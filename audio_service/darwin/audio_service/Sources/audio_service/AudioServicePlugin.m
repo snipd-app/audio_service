@@ -85,6 +85,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (void)removeInitialPlayCommandTarget {
+  [MPRemoteCommandCenter sharedCommandCenter].playCommand.enabled = NO;
   [[MPRemoteCommandCenter sharedCommandCenter].playCommand removeTarget: self.initialPlayCommandTarget];
 }
 
