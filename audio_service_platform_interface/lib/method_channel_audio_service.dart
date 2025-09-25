@@ -10,8 +10,10 @@ class MethodChannelAudioService extends AudioServicePlatform {
       const MethodChannel('com.ryanheise.audio_service.handler.methods');
 
   @override
-  Future<void> configure(ConfigureRequest request) async {
-    await _clientChannel.invokeMethod<void>('configure', request.toMap());
+  Future<ConfigureResponse> configure(ConfigureRequest request) async {
+    final result = await _clientChannel.invokeMethod<Map<Object?, Object?>?>('configure', request.toMap());
+
+    return ConfigureResponse.fromMap(result ?? {});
   }
 
   @override

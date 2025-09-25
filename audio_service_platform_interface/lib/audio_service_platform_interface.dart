@@ -34,7 +34,7 @@ abstract class AudioServicePlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<void> configure(ConfigureRequest request) {
+  Future<ConfigureResponse> configure(ConfigureRequest request) {
     throw UnimplementedError('configure() has not been implemented.');
   }
 
@@ -1296,6 +1296,17 @@ class AndroidAdjustRemoteVolumeRequest {
   Map<String, dynamic> toMap() => <String, dynamic>{
         'direction': direction.index,
       };
+}
+
+class ConfigureResponse {
+  const ConfigureResponse({required this.initialPlayRequest});
+  final bool initialPlayRequest;
+
+  factory ConfigureResponse.fromMap(Map<Object?, Object?> data) {
+    return ConfigureResponse(
+      initialPlayRequest: bool.parse(data['initialPlayRequest']?.toString() ?? 'false', caseSensitive: false)
+    );
+  }
 }
 
 class ConfigureRequest {

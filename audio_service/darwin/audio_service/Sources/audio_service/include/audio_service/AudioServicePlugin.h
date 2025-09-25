@@ -8,6 +8,8 @@
 @interface AudioServicePlugin : NSObject<FlutterPlugin>
 
 @property (readonly, nonatomic) FlutterMethodChannel *channel;
+@property (nonatomic, assign) id initialPlayCommandTarget;
+@property (nonatomic, assign) BOOL requestInitialPlay;
 
 @end
 

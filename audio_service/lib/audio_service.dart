@@ -1012,11 +1012,16 @@ class AudioService {
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     final callbacks = _HandlerCallbacks();
     _platform.setHandlerCallbacks(callbacks);
-    await _platform.configure(ConfigureRequest(config: config._toMessage()));
+    final configureResult = await _platform.configure(ConfigureRequest(config: config._toMessage()));
     _config = config;
     final handler = builder();
     _handler = handler;
     callbacks.setHandler(handler);
+
+    if (configureResult.initialPlayRequest) {
+      print('[BUG] Initial play: true');
+      callbacks.play(PlayRequest());
+    }
 
     _observeMediaItem();
     _observeAndroidPlaybackInfo();
