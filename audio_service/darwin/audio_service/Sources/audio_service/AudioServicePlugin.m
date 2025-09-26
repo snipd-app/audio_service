@@ -31,6 +31,9 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 @implementation AudioServicePlugin {
   FlutterMethodChannel *_channel;
+  
+  id _initialPlayCommandTarget;
+  BOOL _requestInitialPlay;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -62,6 +65,8 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 - (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
+  _requestInitialPlay = NO;
+  _initialPlayCommandTarget = nil;
   _channel = [FlutterMethodChannel
               methodChannelWithName:@"com.ryanheise.audio_service.client.methods"
               binaryMessenger:[registrar messenger]];
@@ -74,10 +79,10 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (void)addInitialPlayCommandTarget {
   [MPRemoteCommandCenter sharedCommandCenter].playCommand.enabled = YES;
-  
-  self.initialPlayCommandTarget = [[MPRemoteCommandCenter sharedCommandCenter].playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+
+  _initialPlayCommandTarget = [[MPRemoteCommandCenter sharedCommandCenter].playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
     // Set the instance variable to true when play command is received
-    self.requestInitialPlay = YES;
+    self->_requestInitialPlay = YES;
     
     // Return success status
     return MPRemoteCommandHandlerStatusSuccess;
@@ -85,8 +90,11 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (void)removeInitialPlayCommandTarget {
-  [MPRemoteCommandCenter sharedCommandCenter].playCommand.enabled = NO;
-  [[MPRemoteCommandCenter sharedCommandCenter].playCommand removeTarget: self.initialPlayCommandTarget];
+  if (_initialPlayCommandTarget) {
+    [MPRemoteCommandCenter sharedCommandCenter].playCommand.enabled = NO;
+    [[MPRemoteCommandCenter sharedCommandCenter].playCommand removeTarget: _initialPlayCommandTarget];
+    _initialPlayCommandTarget = nil;
+  }
 }
 
 
@@ -163,7 +171,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     fastForwardInterval = configMap[@"fastForwardInterval"];
     rewindInterval = configMap[@"rewindInterval"];
     [self removeInitialPlayCommandTarget];
-    result(@{@"initialPlayRequest": @(self.requestInitialPlay)});
+    result(@{@"initialPlayRequest": @(_requestInitialPlay)});
     
   } else if ([@"setState" isEqualToString:call.method]) {
     NSDictionary *args = (NSDictionary *)call.arguments;
@@ -595,6 +603,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (void) dealloc {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+  _initialPlayCommandTarget = nil;
 }
 
 @end
