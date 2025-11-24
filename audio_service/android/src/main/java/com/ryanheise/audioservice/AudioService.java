@@ -795,15 +795,20 @@ public class AudioService extends MediaBrowserServiceCompat {
             if (artUri != null && artUri.startsWith("content:")) {
                 String loadThumbnailUri = mediaMetadata.getString("loadThumbnailUri");
                 artBitmap = loadArtBitmap(artUri, loadThumbnailUri);
-                mediaMetadata = putArtToMetadata(mediaMetadata);
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                    mediaMetadata = putArtToMetadata(mediaMetadata);
+                }
             } else {
                 artBitmap = null;
             }
         }
-        this.mediaMetadata = mediaMetadata;
-        mediaSession.setMetadata(mediaMetadata);
-        handler.removeCallbacksAndMessages(null);
-        handler.post(this::updateNotification);
+
+        if (this.mediaMetadata == null || !this.mediaMetadata.getMediaMetadata().equals(mediaMetadata.getMediaMetadata())) {
+            this.mediaMetadata = mediaMetadata;
+            mediaSession.setMetadata(mediaMetadata);
+            handler.removeCallbacksAndMessages(null);
+            handler.post(this::updateNotification);
+        }
     }
 
     private MediaMetadataCompat putArtToMetadata(MediaMetadataCompat mediaMetadata) {
