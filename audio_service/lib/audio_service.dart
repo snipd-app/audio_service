@@ -232,6 +232,15 @@ class PlaybackState {
 
   /// The index of the current item in the queue, if any.
   final int? queueIndex;
+  /// The interval to be used in [AudioHandler.fastForward]. This value will
+  /// also be used on iOS to render the skip-forward button. This value must be
+  /// positive.
+  final Duration fastForwardInterval;
+
+  /// The interval to be used in [AudioHandler.rewind]. This value will also be
+  /// used on iOS to render the skip-backward button. This value must be
+  /// positive.
+  final Duration rewindInterval;
 
   /// Creates a [PlaybackState] with given field values, and with [updateTime]
   /// defaulting to [DateTime.now].
@@ -251,6 +260,8 @@ class PlaybackState {
     this.shuffleMode = AudioServiceShuffleMode.none,
     this.captioningEnabled = false,
     this.queueIndex,
+    this.fastForwardInterval = const Duration(minutes: 10),
+    this.rewindInterval = const Duration(minutes: 10),
   })  : assert(androidCompactActionIndices == null ||
             androidCompactActionIndices.length <= 3),
         updateTime = updateTime ?? clock.now();
@@ -297,6 +308,8 @@ class PlaybackState {
         shuffleMode: AudioServiceShuffleModeMessage.values[shuffleMode.index],
         captioningEnabled: captioningEnabled,
         queueIndex: queueIndex,
+        fastForwardInterval: fastForwardInterval,
+        rewindInterval: rewindInterval,
       );
 
   @override
@@ -321,6 +334,8 @@ class PlaybackState {
         shuffleMode,
         captioningEnabled,
         queueIndex,
+        fastForwardInterval,
+        rewindInterval,
       );
 
   @override
@@ -343,7 +358,9 @@ class PlaybackState {
           repeatMode == other.repeatMode &&
           shuffleMode == other.shuffleMode &&
           captioningEnabled == other.captioningEnabled &&
-          queueIndex == other.queueIndex;
+          queueIndex == other.queueIndex &&
+          fastForwardInterval == other.fastForwardInterval &&
+          rewindInterval == other.rewindInterval;
 }
 
 /// The `copyWith` function type for [PlaybackState].
@@ -364,6 +381,8 @@ abstract class PlaybackStateCopyWith {
     AudioServiceShuffleMode shuffleMode,
     bool captioningEnabled,
     int? queueIndex,
+    Duration fastForwardInterval,
+    Duration rewindInterval,
   });
 }
 
@@ -393,6 +412,8 @@ class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
     Object? shuffleMode = _fakeNull,
     Object? captioningEnabled = _fakeNull,
     Object? queueIndex = _fakeNull,
+    Object? fastForwardInterval = _fakeNull,
+    Object? rewindInterval = _fakeNull,
   }) =>
       PlaybackState(
         processingState: processingState == _fakeNull
@@ -430,6 +451,9 @@ class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
             : captioningEnabled as bool,
         queueIndex:
             queueIndex == _fakeNull ? value.queueIndex : queueIndex as int?,
+        fastForwardInterval: fastForwardInterval == _fakeNull ? value.fastForwardInterval: fastForwardInterval as Duration,
+        rewindInterval: rewindInterval == _fakeNull ? value.rewindInterval : rewindInterval as Duration,
+
       );
 }
 
@@ -1006,8 +1030,6 @@ class AudioService {
   }) async {
     assert(_cacheManager == null);
     config ??= const AudioServiceConfig();
-    assert(config.fastForwardInterval > Duration.zero);
-    assert(config.rewindInterval > Duration.zero);
     WidgetsFlutterBinding.ensureInitialized();
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     final callbacks = _HandlerCallbacks();
@@ -1397,8 +1419,6 @@ class AudioService {
           androidStopForegroundOnPause: androidStopForegroundOnPause,
           artDownscaleWidth: androidArtDownscaleSize?.width.round(),
           artDownscaleHeight: androidArtDownscaleSize?.height.round(),
-          fastForwardInterval: fastForwardInterval,
-          rewindInterval: rewindInterval,
         ),
       );
     } else {
@@ -1708,12 +1728,12 @@ abstract class BackgroundAudioTask {
   /// Deprecated. Use [AudioServiceConfig.fastForwardInterval] from [AudioService.config] instead.
   @Deprecated(
       "Use [AudioServiceConfig.fastForwardInterval] from [AudioService.config] instead.")
-  Duration get fastForwardInterval => AudioService.config.fastForwardInterval;
+  Duration get fastForwardInterval =>  Duration(seconds: 0);
 
   /// Deprecated. Use [AudioServiceConfig.rewindInterval] from [AudioService.config] instead.
   @Deprecated(
       "Use [AudioServiceConfig.rewindInterval] from [AudioService.config] instead.")
-  Duration get rewindInterval => AudioService.config.rewindInterval;
+  Duration get rewindInterval => Duration(seconds: 0);
 
   /// Deprecated. The new [AudioHandler] API now automatically starts the
   /// service when your implementation enters the playing state. Parameters can
@@ -3227,10 +3247,10 @@ mixin SeekHandler on BaseAudioHandler {
 
   @override
   Future<void> fastForward() =>
-      _seekRelative(AudioService.config.fastForwardInterval);
+      _seekRelative(playbackState.value.fastForwardInterval);
 
   @override
-  Future<void> rewind() => _seekRelative(-AudioService.config.rewindInterval);
+  Future<void> rewind() => _seekRelative(-playbackState.value.rewindInterval);
 
   @override
   Future<void> seekForward(bool begin) async => _seekContinuously(begin, 1);
@@ -3488,16 +3508,6 @@ class AudioServiceConfig {
   /// [artDownscaleWidth] must also be specified.
   final int? artDownscaleHeight;
 
-  /// The interval to be used in [AudioHandler.fastForward]. This value will
-  /// also be used on iOS to render the skip-forward button. This value must be
-  /// positive.
-  final Duration fastForwardInterval;
-
-  /// The interval to be used in [AudioHandler.rewind]. This value will also be
-  /// used on iOS to render the skip-backward button. This value must be
-  /// positive.
-  final Duration rewindInterval;
-
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
@@ -3521,8 +3531,6 @@ class AudioServiceConfig {
     this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
-    this.fastForwardInterval = const Duration(seconds: 10),
-    this.rewindInterval = const Duration(seconds: 10),
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
@@ -3546,8 +3554,6 @@ class AudioServiceConfig {
         androidStopForegroundOnPause: androidStopForegroundOnPause,
         artDownscaleWidth: artDownscaleWidth,
         artDownscaleHeight: artDownscaleHeight,
-        fastForwardInterval: fastForwardInterval,
-        rewindInterval: rewindInterval,
         preloadArtwork: preloadArtwork,
         androidBrowsableRootExtras: androidBrowsableRootExtras,
       );

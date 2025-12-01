@@ -410,6 +410,17 @@ class PlaybackStateMessage {
   /// The index of the current item in the queue, if any.
   final int? queueIndex;
 
+
+  /// The interval to be used in [AudioHandlerCallbacks.fastForward]. This value will
+  /// also be used on iOS to render the skip-forward button. This value must be
+  /// positive.
+  final Duration fastForwardInterval;
+
+  /// The interval to be used in [AudioHandlerCallbacks.rewind]. This value will also be
+  /// used on iOS to render the skip-backward button. This value must be
+  /// positive.
+  final Duration rewindInterval;
+
   /// Creates a [PlaybackStateMessage] with given field values, and with [updateTime]
   /// defaulting to [DateTime.now].
   PlaybackStateMessage({
@@ -428,6 +439,8 @@ class PlaybackStateMessage {
     this.shuffleMode = AudioServiceShuffleModeMessage.none,
     this.captioningEnabled = false,
     this.queueIndex,
+    this.fastForwardInterval = const Duration(seconds: 10),
+    this.rewindInterval = const Duration(seconds: 10),
   })  : assert(androidCompactActionIndices == null ||
             androidCompactActionIndices.length <= 3),
         updateTime = updateTime ?? DateTime.now();
@@ -456,6 +469,8 @@ class PlaybackStateMessage {
             AudioServiceShuffleModeMessage.values[map['shuffleMode'] as int],
         captioningEnabled: map['captioningEnabled'] as bool,
         queueIndex: map['queueIndex'] as int?,
+        fastForwardInterval:  Duration(milliseconds: map['fastForwardInterval'] as int? ?? 0),
+        rewindInterval:  Duration(milliseconds: map['rewindInterval'] as int? ?? 0),
       );
 
   Map<String, dynamic> toMap() => <String, dynamic>{
@@ -474,6 +489,8 @@ class PlaybackStateMessage {
         'shuffleMode': shuffleMode.index,
         'captioningEnabled': captioningEnabled,
         'queueIndex': queueIndex,
+        'fastForwardInterval': fastForwardInterval.inMilliseconds,
+        'rewindInterval': rewindInterval.inMilliseconds,
       };
 }
 
@@ -1379,15 +1396,6 @@ class AudioServiceConfigMessage {
   /// [artDownscaleWidth] must also be specified.
   final int? artDownscaleHeight;
 
-  /// The interval to be used in [AudioHandlerCallbacks.fastForward]. This value will
-  /// also be used on iOS to render the skip-forward button. This value must be
-  /// positive.
-  final Duration fastForwardInterval;
-
-  /// The interval to be used in [AudioHandlerCallbacks.rewind]. This value will also be
-  /// used on iOS to render the skip-backward button. This value must be
-  /// positive.
-  final Duration rewindInterval;
 
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
@@ -1414,13 +1422,9 @@ class AudioServiceConfigMessage {
     this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
-    this.fastForwardInterval = const Duration(seconds: 10),
-    this.rewindInterval = const Duration(seconds: 10),
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
-        assert(fastForwardInterval > Duration.zero),
-        assert(rewindInterval > Duration.zero),
         assert(
           !androidNotificationOngoing || androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
@@ -1442,8 +1446,6 @@ class AudioServiceConfigMessage {
         'androidStopForegroundOnPause': androidStopForegroundOnPause,
         'artDownscaleWidth': artDownscaleWidth,
         'artDownscaleHeight': artDownscaleHeight,
-        'fastForwardInterval': fastForwardInterval.inMilliseconds,
-        'rewindInterval': rewindInterval.inMilliseconds,
         'preloadArtwork': preloadArtwork,
         'androidBrowsableRootExtras': androidBrowsableRootExtras,
       };

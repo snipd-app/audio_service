@@ -168,8 +168,8 @@ static NSMutableDictionary *nowPlayingInfo = nil;
   if ([@"configure" isEqualToString:call.method]) {
     NSDictionary *args = (NSDictionary *)call.arguments;
     NSDictionary *configMap = (NSDictionary *)args[@"config"];
-    fastForwardInterval = configMap[@"fastForwardInterval"];
-    rewindInterval = configMap[@"rewindInterval"];
+    fastForwardInterval = @(10 * 1000);
+    rewindInterval = @(10 * 1000);
     [self removeInitialPlayCommandTarget];
     result(@{@"initialPlayRequest": @(_requestInitialPlay)});
     
@@ -177,11 +177,23 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     NSDictionary *args = (NSDictionary *)call.arguments;
     NSDictionary *stateMap = (NSDictionary *)args[@"state"];
     long long msSinceEpoch;
+    BOOL updateIntervals = NO;
+    
     if (stateMap[@"updateTime"] != [NSNull null]) {
       msSinceEpoch = [stateMap[@"updateTime"] longLongValue];
     } else {
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
+    
+    if (fastForwardInterval != stateMap[@"fastForwardInterval"]) {
+      fastForwardInterval = stateMap[@"fastForwardInterval"];
+      updateIntervals = YES;
+    }
+    if (rewindInterval != stateMap[@"rewindInterval"]) {
+      rewindInterval = stateMap[@"rewindInterval"];
+      updateIntervals = YES;
+    }
+    
     actionBits = 0;
     NSArray *controlsArray = stateMap[@"controls"];
     for (int i = 0; i < controlsArray.count; i++) {
@@ -214,6 +226,9 @@ static NSMutableDictionary *nowPlayingInfo = nil;
       [self activateCommandCenter];
     }
     [self updateControls];
+    if (updateIntervals) {
+      [self updateIntervals];
+    }
     if (playing != oldPlaying ||
         speed.doubleValue != oldSpeed.doubleValue ||
         position.longLongValue != oldPosition.longLongValue) {
@@ -357,6 +372,19 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     [self updateControl:action];
   }
   _controlsUpdated = YES;
+}
+
+- (void) updateIntervals {
+  if (rewindInterval.integerValue > 0) {
+    NSNumber *rewindIntervalInSec = [NSNumber numberWithInt: [rewindInterval intValue]/1000];
+    commandCenter.skipBackwardCommand.preferredIntervals = @[rewindIntervalInSec];
+  }
+  
+  if (fastForwardInterval.integerValue > 0) {
+    NSNumber *fastForwardIntervalInSec = [NSNumber numberWithInt: [fastForwardInterval intValue]/1000];
+    commandCenter.skipForwardCommand.preferredIntervals = @[fastForwardIntervalInSec];
+  }
+
 }
 
 - (void) updateControl:(enum MediaAction)action {
