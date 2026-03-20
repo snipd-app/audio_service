@@ -127,6 +127,14 @@ void main() {
     );
   });
 
+  test('$AudioServiceConfigMessage rejects negative pause exit foreground delay',
+      () {
+    expect(
+      () => AudioServiceConfigMessage(androidPauseExitForegroundDelayMs: -1),
+      throwsAssertionError,
+    );
+  });
+
   group('$RatingMessage $asciiSquare', () {
     test('maps', () {
       const messageWithAllNulls = RatingMessage(

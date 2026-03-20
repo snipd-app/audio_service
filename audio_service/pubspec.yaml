@@ -51,6 +51,11 @@ dev_dependencies:
   fake_async: ^1.2.0
   flutter_lints: ^3.0.1
 
+# Use local platform_interface (e.g. 0.1.4) while developing; delete after publishing it to pub.dev.
+dependency_overrides:
+  audio_service_platform_interface:
+    path: ../audio_service_platform_interface
+
 flutter:
   plugin:
     platforms:
