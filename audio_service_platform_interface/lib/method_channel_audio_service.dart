@@ -11,7 +11,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
 
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
-    final result = await _clientChannel.invokeMethod<Map<Object?, Object?>?>('configure', request.toMap());
+    final result = await _clientChannel.invokeMethod<Map<Object?, Object?>?>(
+        'configure', request.toMap());
 
     return ConfigureResponse.fromMap(result ?? {});
   }

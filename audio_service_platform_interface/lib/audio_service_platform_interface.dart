@@ -410,7 +410,6 @@ class PlaybackStateMessage {
   /// The index of the current item in the queue, if any.
   final int? queueIndex;
 
-
   /// The interval to be used in [AudioHandlerCallbacks.fastForward]. This value will
   /// also be used on iOS to render the skip-forward button. This value must be
   /// positive.
@@ -469,8 +468,10 @@ class PlaybackStateMessage {
             AudioServiceShuffleModeMessage.values[map['shuffleMode'] as int],
         captioningEnabled: map['captioningEnabled'] as bool,
         queueIndex: map['queueIndex'] as int?,
-        fastForwardInterval:  Duration(milliseconds: map['fastForwardInterval'] as int? ?? 0),
-        rewindInterval:  Duration(milliseconds: map['rewindInterval'] as int? ?? 0),
+        fastForwardInterval:
+            Duration(milliseconds: map['fastForwardInterval'] as int? ?? 0),
+        rewindInterval:
+            Duration(milliseconds: map['rewindInterval'] as int? ?? 0),
       );
 
   Map<String, dynamic> toMap() => <String, dynamic>{
@@ -1321,8 +1322,9 @@ class ConfigureResponse {
 
   factory ConfigureResponse.fromMap(Map<Object?, Object?> data) {
     return ConfigureResponse(
-      initialPlayRequest: bool.parse(data['initialPlayRequest']?.toString() ?? 'false', caseSensitive: false)
-    );
+        initialPlayRequest: bool.parse(
+            data['initialPlayRequest']?.toString() ?? 'false',
+            caseSensitive: false));
   }
 }
 
@@ -1384,6 +1386,12 @@ class AudioServiceConfigMessage {
   /// able to kill your service at any time to reclaim resources.
   final bool androidStopForegroundOnPause;
 
+  /// Delay before [androidStopForegroundOnPause] tears down the foreground
+  /// service on Android, in milliseconds. Used to avoid
+  /// `ForegroundServiceStartNotAllowedException` when playback quickly resumes
+  /// after a transient pause (e.g. notification sounds).
+  final int androidPauseExitForegroundDelayMs;
+
   /// If not null, causes the artwork specified by [MediaItemMessage.artUri] to be
   /// downscaled to this maximum pixel width. If the resolution of your artwork
   /// is particularly high, this can help to conserve memory. If specified,
@@ -1395,7 +1403,6 @@ class AudioServiceConfigMessage {
   /// is particularly high, this can help to conserve memory. If specified,
   /// [artDownscaleWidth] must also be specified.
   final int? artDownscaleHeight;
-
 
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
@@ -1420,6 +1427,7 @@ class AudioServiceConfigMessage {
     this.androidNotificationClickStartsActivity = true,
     this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
+    this.androidPauseExitForegroundDelayMs = 5000,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
     this.preloadArtwork = false,
@@ -1428,7 +1436,8 @@ class AudioServiceConfigMessage {
         assert(
           !androidNotificationOngoing || androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
-        );
+        ),
+        assert(androidPauseExitForegroundDelayMs >= 0);
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'androidResumeOnClick': androidResumeOnClick,
@@ -1444,6 +1453,7 @@ class AudioServiceConfigMessage {
             androidNotificationClickStartsActivity,
         'androidNotificationOngoing': androidNotificationOngoing,
         'androidStopForegroundOnPause': androidStopForegroundOnPause,
+        'androidPauseExitForegroundDelayMs': androidPauseExitForegroundDelayMs,
         'artDownscaleWidth': artDownscaleWidth,
         'artDownscaleHeight': artDownscaleHeight,
         'preloadArtwork': preloadArtwork,

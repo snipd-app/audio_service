@@ -232,6 +232,7 @@ class PlaybackState {
 
   /// The index of the current item in the queue, if any.
   final int? queueIndex;
+
   /// The interval to be used in [AudioHandler.fastForward]. This value will
   /// also be used on iOS to render the skip-forward button. This value must be
   /// positive.
@@ -451,9 +452,12 @@ class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
             : captioningEnabled as bool,
         queueIndex:
             queueIndex == _fakeNull ? value.queueIndex : queueIndex as int?,
-        fastForwardInterval: fastForwardInterval == _fakeNull ? value.fastForwardInterval: fastForwardInterval as Duration,
-        rewindInterval: rewindInterval == _fakeNull ? value.rewindInterval : rewindInterval as Duration,
-
+        fastForwardInterval: fastForwardInterval == _fakeNull
+            ? value.fastForwardInterval
+            : fastForwardInterval as Duration,
+        rewindInterval: rewindInterval == _fakeNull
+            ? value.rewindInterval
+            : rewindInterval as Duration,
       );
 }
 
@@ -1034,7 +1038,8 @@ class AudioService {
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     final callbacks = _HandlerCallbacks();
     _platform.setHandlerCallbacks(callbacks);
-    final configureResult = await _platform.configure(ConfigureRequest(config: config._toMessage()));
+    final configureResult = await _platform
+        .configure(ConfigureRequest(config: config._toMessage()));
     _config = config;
     final handler = builder();
     _handler = handler;
@@ -1728,7 +1733,7 @@ abstract class BackgroundAudioTask {
   /// Deprecated. Use [AudioServiceConfig.fastForwardInterval] from [AudioService.config] instead.
   @Deprecated(
       "Use [AudioServiceConfig.fastForwardInterval] from [AudioService.config] instead.")
-  Duration get fastForwardInterval =>  Duration(seconds: 0);
+  Duration get fastForwardInterval => Duration(seconds: 0);
 
   /// Deprecated. Use [AudioServiceConfig.rewindInterval] from [AudioService.config] instead.
   @Deprecated(
@@ -3496,6 +3501,16 @@ class AudioServiceConfig {
   /// able to kill your service at any time to reclaim resources.
   final bool androidStopForegroundOnPause;
 
+  /// On Android, when [androidStopForegroundOnPause] is true, how long to wait
+  /// after pausing before calling [stopForeground](https://developer.android.com/reference/android/app/Service#stopForeground(int)).
+  ///
+  /// A short non-zero delay reduces [ForegroundServiceStartNotAllowedException]
+  /// when playback resumes quickly after a transient interruption (e.g. another
+  /// app's short sound). Does nothing if [androidStopForegroundOnPause] is false.
+  ///
+  /// The default is 5 seconds.
+  final Duration androidPauseExitForegroundDelay;
+
   /// If not null, causes the artwork specified by [MediaItem.artUri] to be
   /// downscaled to this maximum pixel width. If the resolution of your artwork
   /// is particularly high, this can help to conserve memory. If specified,
@@ -3529,6 +3544,7 @@ class AudioServiceConfig {
     this.androidNotificationClickStartsActivity = true,
     this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
+    this.androidPauseExitForegroundDelay = const Duration(seconds: 5),
     this.artDownscaleWidth,
     this.artDownscaleHeight,
     this.preloadArtwork = false,
@@ -3539,7 +3555,9 @@ class AudioServiceConfig {
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
         );
 
-  AudioServiceConfigMessage _toMessage() => AudioServiceConfigMessage(
+  AudioServiceConfigMessage _toMessage() {
+    assert(!androidPauseExitForegroundDelay.isNegative);
+    return AudioServiceConfigMessage(
         androidResumeOnClick: androidResumeOnClick,
         androidNotificationChannelId: androidNotificationChannelId,
         androidNotificationChannelName: androidNotificationChannelName,
@@ -3552,11 +3570,14 @@ class AudioServiceConfig {
             androidNotificationClickStartsActivity,
         androidNotificationOngoing: androidNotificationOngoing,
         androidStopForegroundOnPause: androidStopForegroundOnPause,
+        androidPauseExitForegroundDelayMs:
+            androidPauseExitForegroundDelay.inMilliseconds,
         artDownscaleWidth: artDownscaleWidth,
         artDownscaleHeight: artDownscaleHeight,
         preloadArtwork: preloadArtwork,
         androidBrowsableRootExtras: androidBrowsableRootExtras,
       );
+  }
 
   @override
   String toString() => '${_toMessage().toMap()}';

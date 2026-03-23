@@ -25,6 +25,7 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.LruCache;
+import android.util.Log;
 import android.util.Size;
 import android.view.KeyEvent;
 
@@ -57,6 +58,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     public static final int CONTENT_STYLE_CATEGORY_LIST_ITEM_HINT_VALUE = 3;
     public static final int CONTENT_STYLE_CATEGORY_GRID_ITEM_HINT_VALUE = 4;
 
+    private static final String LOG_TAG = "AudioService";
     private static final String SHARED_PREFERENCES_NAME = "audio_service_preferences";
 
     private static final int NOTIFICATION_ID = 1124;
@@ -283,6 +285,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     private int shuffleMode;
     private boolean notificationCreated;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    /** Separate from {@link #handler}: {@link #setMetadata} clears all callbacks on that handler. */
+    private final Handler foregroundExitHandler = new Handler(Looper.getMainLooper());
+    private Runnable exitForegroundRunnable;
     private VolumeProviderCompat volumeProvider;
 
     public AudioProcessingState getProcessingState() {
@@ -359,6 +364,10 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onDestroy() {
+        if (exitForegroundRunnable != null) {
+            foregroundExitHandler.removeCallbacks(exitForegroundRunnable);
+            exitForegroundRunnable = null;
+        }
         super.onDestroy();
         if (listener != null) {
             listener.onDestroy();
@@ -703,7 +712,17 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void enterPlayingState() {
-        ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        if (exitForegroundRunnable != null) {
+            foregroundExitHandler.removeCallbacks(exitForegroundRunnable);
+            exitForegroundRunnable = null;
+        }
+
+        try {
+            ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        } catch (IllegalStateException e) {
+            Log.e(LOG_TAG, "startForegroundService() not allowed (e.g. Android 12+ background); playback may continue without FGS notification until foreground", e);
+            return;
+        }
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
 
@@ -713,9 +732,19 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void exitPlayingState() {
-        if (config.androidStopForegroundOnPause) {
-            exitForegroundState();
+        if (!config.androidStopForegroundOnPause) {
+            return;
         }
+        if (exitForegroundRunnable != null) {
+            foregroundExitHandler.removeCallbacks(exitForegroundRunnable);
+        }
+        exitForegroundRunnable = () -> {
+            exitForegroundState();
+            exitForegroundRunnable = null;
+        };
+        foregroundExitHandler.postDelayed(
+                exitForegroundRunnable,
+                Math.max(0L, config.androidPauseExitForegroundDelayMs));
     }
 
     private void exitForegroundState() {
